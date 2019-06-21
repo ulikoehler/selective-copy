@@ -35,7 +35,7 @@ This will compile `libopenlog.so`.
 
 This will run `make` in `~/myprojectdir` and copy every file read by `make` (and all its child processes) from `myprojectdir` to `/tmp/myproject-copy`. Files read from outside `~/myprojectdir` will not be copied. Files that are only written (and not opened for reading or read/write) are not copied.
 
-Note that for *selective-copy* to work you need to do a clean build in your project using `make`, i.e. do `make clean` or equivalent before running *selective-copy*. If make 
+Note that for *selective-copy* to work you need to do a clean build in your project using `make`, i.e. do `make clean` or equivalent before running *selective-copy*. If `make` or similar commands are not executed in a clean environment, they might not `open()` all relevant source files.
 
 ## How does it work?
 
@@ -46,7 +46,7 @@ Note that for *selective-copy* to work you need to do a clean build in your proj
 The python script will collect all the read-opened absolute filenames using an `asyncio`-based server that easily allows to handle an arbitrary number of connections efficiently.
 
 `libopenlog` will only send the server the filenames for files within the `LIBOPENLOG_PREFIX` directory. When using `selective-copy.py`, this defaults to `--workdir`, but you can override that using `--prefix`.
-The purpose of that filter is to avoid copying files e.g. from 
+The purpose of that filter is to avoid copying files e.g. from `/usr/include`. If you want to copy *all* files, use `--prefix /`, i.e. prefix = root directory.
 
 After the command has finished, the python script will compute the path of each file relative to `LIBOPENLOG_PREFIX` and then copy it inside the destination directory (i.e. `--copy-to`) using the same folder structure.
 
