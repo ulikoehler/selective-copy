@@ -9,7 +9,8 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--workdir", required=True, help="Working directory")
     args = parser.parse_args()
     # Get path of interceptor library
-    libopenlog_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "libopenlog.so")
+    libopenlog_path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "libopenlog.so")
     # Build environment
     custom_env = {
         'LD_PRELOAD': libopenlog_path,
@@ -17,6 +18,6 @@ if __name__ == "__main__":
         'LIBOPENLOG_WLOGFILE': '/tmp/write.log'
     }
     custom_env.update(os.environ)
-    # 
+    # Run subprocess
     process = subprocess.Popen(args.cmdarg, cwd=args.workdir, env=custom_env)
     stdout, stderr = process.communicate()
