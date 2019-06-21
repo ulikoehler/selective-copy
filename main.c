@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -39,17 +41,18 @@ static libc_open64_t libc_open64 = NULL;
 #define INTERNAL __attribute__ ((visibility("hidden")))
 
 
-static FILE* readOutFile = NULL;
+static int readOutSock = -1;
 static pthread_mutex_t readOutMutex;
-static FILE* writeOutFile = NULL;
+static int writeOutSock = -1;
 static pthread_mutex_t writeOutMutex;
 /**
  * Log open 
  */
 void INTERNAL libOpenlogLogRead(const char* pathname) {
-	if(readOutFile != NULL) {
+	if(readOutSock != -1) {
 		pthread_mutex_lock(&readOutMutex);
-		fprintf(readOutFile, "%s\n", pathname);
+		write(readOutSock, pathname, strlen(pathname));
+		write(readOutSock, "\n", 1);
 		pthread_mutex_unlock(&readOutMutex);
 	}
 }
@@ -58,11 +61,37 @@ void INTERNAL libOpenlogLogRead(const char* pathname) {
  * Log open 
  */
 void INTERNAL libOpenlogLogWrite(const char* pathname) {
-	if(writeOutFile != NULL) {
+	if(writeOutSock != -1) {
 		pthread_mutex_lock(&writeOutMutex);
-		fprintf(writeOutFile, "%s\n", pathname);
+		write(writeOutSock, pathname, strlen(pathname));
+		write(writeOutSock, "\n", 1);
 		pthread_mutex_unlock(&writeOutMutex);
 	}
+}
+
+int INTERNAL openSock(const char* host, int port) {
+	int connfd;
+	struct sockaddr_in server;
+	
+	//Create socket
+	int sockfd = socket(AF_INET , SOCK_STREAM , 0);
+	if (sockfd == -1) {
+        fprintf(stderr, "libopenlog: Creating TCP socket failed.\n"); 
+        _exit(2); 
+		return -1;
+	}
+	
+	//Prepare the sockaddr_in structure
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = inet_addr(host);
+	server.sin_port = htons(port);
+
+    if (connect(sockfd, &server, sizeof(server)) != 0) { 
+        fprintf(stderr, "libopenlog: Connecting to %s port %d failed.\n", host, port); 
+        _exit(2);
+		return -1;
+    }
+	return sockfd;
 }
 
 void __attribute__ ((constructor)) libopenlog_init(void) {
@@ -73,23 +102,8 @@ void __attribute__ ((constructor)) libopenlog_init(void) {
 	ASSIGN_DLSYM_OR_DIE(open64);
     #endif
 	// Initialize read log file
-	char* rlogfile = getenv("LIBOPENLOG_RLOGFILE");
-	if(rlogfile == NULL) {
-		fprintf(stderr, "libopenlog error: LIBOPENLOG_RLOGFILE environment variable needs to be set to a file or to NULL\n");
-		_exit(1);
-	}
-	if(strncasecmp(rlogfile, "NULL", 4) != 0) {
-		readOutFile = fopen(rlogfile, "w");
-	}
-	// Initialize write log file
-	char* wlogfile = getenv("LIBOPENLOG_WLOGFILE");
-	if(wlogfile == NULL) {
-		fprintf(stderr, "libopenlog error: LIBOPENLOG_WLOGFILE environment variable needs to be set to a file or to NULL\n");
-		_exit(1);
-	}
-	if(strncasecmp(wlogfile, "NULL", 4) != 0) {
-		writeOutFile = fopen(wlogfile, "w");
-	}
+	readOutSock = openSock("127.0.0.1", 13485);
+	writeOutSock = openSock("127.0.0.1", 13486);
 	// Log modes
     pthread_mutex_init(&readOutMutex, NULL /* default mutex attributes */);
     pthread_mutex_init(&writeOutMutex, NULL /* default mutex attributes */);
@@ -97,11 +111,11 @@ void __attribute__ ((constructor)) libopenlog_init(void) {
 }
 
 void __attribute__ ((destructor)) libopenlog_deinit(void) {
-	if(readOutFile != NULL) {
-		fclose(readOutFile);
+	if(readOutSock != -1) {
+		close(readOutSock);
 	}
-	if(writeOutFile != NULL) {
-		fclose(writeOutFile);
+	if(writeOutSock != -1) {
+		close(writeOutSock);
 	}
 	pthread_mutex_destroy(&readOutMutex);
 	pthread_mutex_destroy(&writeOutMutex);
