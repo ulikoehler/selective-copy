@@ -26,7 +26,7 @@ class ServerThread(threading.Thread):
 
     async def waiter(self):
         while not self._stop:
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.1)
 
     def run(self):
         self.loop = asyncio.new_event_loop()
