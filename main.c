@@ -40,31 +40,46 @@ static libc_open64_t libc_open64 = NULL;
 #define VISIBLE __attribute__ ((visibility("default")))
 #define INTERNAL __attribute__ ((visibility("hidden")))
 
+static const char* prefix = NULL; // Only paths with this (absolute) prefix will be considered
+static size_t prefixLength = 0;
 
 static int readOutSock = -1;
 static pthread_mutex_t readOutMutex;
 static int writeOutSock = -1;
 static pthread_mutex_t writeOutMutex;
-/**
- * Log open 
- */
+
 void INTERNAL libOpenlogLogRead(const char* pathname) {
 	if(readOutSock != -1) {
 		pthread_mutex_lock(&readOutMutex);
-		write(readOutSock, pathname, strlen(pathname));
+		// Get actual path
+		char* abspath = realpath(pathname, NULL);
+		// Check prefix, if it doesnt match, ignore
+		if (prefix != NULL && strncmp(abspath, prefix, prefixLength) != 0) {
+			return;
+		}
+		// Write to socket
+		write(readOutSock, abspath, strlen(abspath));
 		write(readOutSock, "\n", 1);
+		// Cleanup
+		free(abspath);
 		pthread_mutex_unlock(&readOutMutex);
 	}
 }
 
-/**
- * Log open 
- */
 void INTERNAL libOpenlogLogWrite(const char* pathname) {
 	if(writeOutSock != -1) {
 		pthread_mutex_lock(&writeOutMutex);
-		write(writeOutSock, pathname, strlen(pathname));
+		// Get actual path
+		char* abspath = realpath(pathname, NULL);
+		// Check prefix, if it doesnt match, ignore
+		if (prefix != NULL && strncmp(abspath, prefix, prefixLength) != 0) {
+			return;
+		}
+		// Write to socket
+		write(writeOutSock, abspath, strlen(abspath));
 		write(writeOutSock, "\n", 1);
+		// Cleanup
+		free(abspath);
 		pthread_mutex_unlock(&writeOutMutex);
 	}
 }
@@ -101,6 +116,11 @@ void __attribute__ ((constructor)) libopenlog_init(void) {
     #ifdef HAVE_OPEN64
 	ASSIGN_DLSYM_OR_DIE(open64);
     #endif
+	// Get prefix of paths to consider
+	prefix = (const char*)getenv("LIBOPENLOG_PREFIX");
+ 	if(prefix != NULL) {
+		prefixLength = strlen(prefix);
+ 	}
 	// Initialize read log file
 	readOutSock = openSock("127.0.0.1", 13485);
 	writeOutSock = openSock("127.0.0.1", 13486);
