@@ -4,6 +4,7 @@ import argparse
 import threading
 import os
 import socket
+import shutil
 import time
 import sys
 import asyncio
@@ -63,7 +64,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("cmdarg", nargs="+", help="Command and args")
     parser.add_argument("-w", "--workdir", required=True, help="Working directory")
-    parser.add_argument("-p", "--prefix", help="The directory to consider for opened files")
+    parser.add_argument("-p", "--prefix", help="The directory to consider for opened files. Defaults to workdir.")
+    parser.add_argument("-c", "--copy-to", help="The directory to copy only opened files to.")
     args = parser.parse_args()
     # Start server
     srv = ServerThread(13485, 13486)
@@ -79,7 +81,11 @@ if __name__ == "__main__":
         'LD_PRELOAD': libopenlog_path,
     }
     if args.prefix:
+        prefix = args.prefix
         custom_env['LIBOPENLOG_PREFIX'] = os.path.realpath(args.prefix)
+    else:
+        prefix = args.workdir
+        custom_env['LIBOPENLOG_PREFIX'] = os.path.realpath(args.workdir)
     custom_env.update(os.environ)
     # Run subprocess
     process = subprocess.Popen(args.cmdarg, cwd=args.workdir, env=custom_env)
@@ -87,4 +93,19 @@ if __name__ == "__main__":
     # Stop server
     srv.kill()
     # Process result
-    print(srv.raccumulator.files)
+    if args.copy_to:
+        os.makedirs(args.copy_to, exist_ok=True)
+    for abspath in srv.raccumulator.files:
+        relpath = os.path.relpath(abspath, start=prefix)
+        if args.copy_to: # if we should copy
+            dstpath = os.path.join(args.copy_to, relpath)
+            # Create dst directory if doesnt exist
+            dstdir = os.path.dirname(dstpath)
+            os.makedirs(dstdir, exist_ok=True)
+            # Copy file (try to conserve metadata)
+            shutil.copy2(abspath, dstpath)
+            print('Copied {} to {}'.format(relpath, dstpath))
+        else: # we wont copy => just print
+            print(relpath)
+
+                
