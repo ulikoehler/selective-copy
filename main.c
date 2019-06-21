@@ -51,8 +51,13 @@ static pthread_mutex_t writeOutMutex;
 void INTERNAL libOpenlogLogRead(const char* pathname) {
 	if(readOutSock != -1) {
 		pthread_mutex_lock(&readOutMutex);
+		printf("R %s\n", pathname);
+		fflush(stdout);
 		// Get actual path
 		char* abspath = realpath(pathname, NULL);
+		if(abspath == NULL) {
+			return;
+		}
 		// Check prefix, if it doesnt match, ignore
 		if (prefix != NULL && strncmp(abspath, prefix, prefixLength) != 0) {
 			return;
@@ -69,8 +74,13 @@ void INTERNAL libOpenlogLogRead(const char* pathname) {
 void INTERNAL libOpenlogLogWrite(const char* pathname) {
 	if(writeOutSock != -1) {
 		pthread_mutex_lock(&writeOutMutex);
+		printf("W %s\n", pathname);
+		fflush(stdout);
 		// Get actual path
 		char* abspath = realpath(pathname, NULL);
+		if(abspath == NULL) {
+			return;
+		}
 		// Check prefix, if it doesnt match, ignore
 		if (prefix != NULL && strncmp(abspath, prefix, prefixLength) != 0) {
 			return;
