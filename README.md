@@ -1,15 +1,17 @@
 # selective-copy
 
-Did you every try to copy a huge project file folder over the network even though you needed only a couple of files?
-And then you wasted hours trying to find out experimentally what files you actually *need*
+Did you every try to copy a huge project file folder over the network even though you needed only a couple 
+of files?
 
-*selective-copy* is the solution for all those problem. It copies only what files are actually needed 
+And then you wasted hours trying to find out experimentally what files you actually *need*?
+
+*selective-copy* is the solution for all those issues. It copies only what files are actually required to a folder of your choice.
 
 ## How to install
 
-First, install a somewhat recent version of Python 3 to run the python part.
+First, install a somewhat recent version of Python 3 to run the python part. If you are unsure if your Python version will work, just try it out.
 
-In order to compile the native library, you need a C++ compiler like G++ and 
+In order to compile the native library, you need a C++ compiler like G++ and CMake.
 
 On Ubuntu you can install that using
 
@@ -41,7 +43,7 @@ Note that for *selective-copy* to work you need to do a clean build in your proj
 
 *selective-copy* includes *libopenlog* which is a library that hacks into the `open()` syscall by using the *`LD_PRELOAD` trick*.
 
-`selective-copy.py` will automatically run the command (e.g. `make`) with the correct environment variables like `LD_PRELOAD` and `LIBOPENLOG_PREFIX`. Since not only the command itself (e.g. `make`) will open files but also their child processes (like `g++`), each instance of `libopenlog` (i.e. each process running within `selective-copy`) will connect to `localhost:13485` (for read-opened files) and `localhost:13486` (for write-opened files)
+`selective-copy.py` will automatically run the command (e.g. `make`) with the correct environment variables like `LD_PRELOAD` and `LIBOPENLOG_PREFIX`. Since not only the command itself (e.g. `make`) will open files but also their child processes (like `g++`), each instance of `libopenlog` (i.e. each process running within `selective-copy`) will connect to `localhost:13485` (for read-opened files) and `localhost:13486` (for write-opened files). libopenlog will make the paths absolute & pre-filter the opened filenames (according to `LIBOPENLOG_PREFIX`).
 
 The python script will collect all the read-opened absolute filenames using an `asyncio`-based server that easily allows to handle an arbitrary number of connections efficiently.
 
